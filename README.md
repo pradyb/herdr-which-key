@@ -4,6 +4,9 @@ A Neovim/tmux-style **which-key** popup for [herdr](https://herdr.dev).
 Press one leader key, see every next key with a label, and drill into
 groups until you hit an action.
 
+This is an unofficial community plugin. It is not affiliated with or endorsed
+by herdr.
+
 ```
  herdr › pane
 ──────────────────────────────────────────────────────────────
@@ -18,17 +21,20 @@ groups until you hit an action.
 
 ## How is this different?
 
-A few herdr plugins show your keybindings. This one works like Neovim's
-which-key: you **type through a tree of keys you design**, rather than
-reading or searching a list of bindings you already have.
+A few herdr plugins list the keybindings you already have in `config.toml`.
+This one works like Neovim's which-key: you **type through a separate tree of
+keys you design** in `keys.toml`, and each leaf runs any herdr command.
 
 | | [herdr-hintr](https://github.com/wraithyy/herdr-hintr) | [herdr-keymap](https://github.com/The-Dave-Stack/herdr-keymap) | **herdr-which-key** |
 |---|---|---|---|
-| What it shows | cheatsheet of the bindings in your config | palette of all bindings by category | a key tree you define in `keys.toml` |
-| Nested groups (`p` → `R` → `h`) | no | categories | yes, any depth |
-| Pickers, text prompts, repeat mode | no | no | yes |
-| Runs actions that have no binding of their own | no | no | yes, any herdr CLI or shell command |
-| Needs | zsh | see its README | python3 |
+| What it shows | the bindings in your config, and runs the one you press | palette of all bindings by category | a key tree you define in `keys.toml` |
+| Nested groups (`p` → `R` → `h`) | no | one level (categories) | yes, any depth |
+| Pickers, text prompts, repeat mode | no | pickers and prompts for agent commands, no repeat | yes |
+| Runs commands that aren't in your bindings | no | a fixed set of herdr CLI commands | yes, any herdr CLI or shell command |
+| Needs | zsh | Node 24+ | python3 |
+
+Checked against each plugin's README and source in September 2026. Those
+plugins change, so see their pages for what they do today.
 
 They don't conflict, so you can install them side by side. For example, keep
 a cheatsheet on one key and which-key on `prefix+space`.
