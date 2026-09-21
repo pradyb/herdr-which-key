@@ -38,6 +38,28 @@ def test_empty_placeholder_drops_its_flag():
     assert wk.build_argv("tab create --cwd {cwd}", {"cwd": ""}) == ["tab", "create"]
 
 
+def _keys(raw, n):
+    """Feed raw bytes to Term.read_key. The write end is closed so a broken parser hits EOF, not a hang."""
+    r, w = os.pipe()
+    os.write(w, raw)
+    os.close(w)
+    t = wk.Term.__new__(wk.Term)  # skip __init__: it needs a real tty
+    t.fd = r
+    try:
+        return [t.read_key() for _ in range(n)]
+    finally:
+        os.close(r)
+
+
+def test_arrow_keys_parse_and_do_not_swallow_the_next_key():
+    # down, up, app-mode down, ctrl+up, plain j, Delete (ignored), plain x
+    assert _keys(b"\x1b[B\x1b[A\x1bOB\x1b[1;5Aj\x1b[3~x", 7) == ["down", "up", "down", "up", "j", "", "x"]
+
+
+def test_lone_escape_is_esc():
+    assert _keys(b"\x1b", 1) == ["esc"]
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

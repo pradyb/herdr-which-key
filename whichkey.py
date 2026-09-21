@@ -284,7 +284,7 @@ class Term:
         return s.columns, s.lines
 
     def read_key(self):
-        """Return one key: a character, 'esc', 'backspace', 'ctrl+x', or ''."""
+        """Return one key: a character, 'esc', 'backspace', 'up', 'down', 'ctrl+x', or ''."""
         b = os.read(self.fd, 1)
         if not b:
             return "esc"
@@ -293,8 +293,16 @@ class Term:
             r, _, _ = select.select([self.fd], [], [], 0.03)
             if not r:
                 return "esc"
-            os.read(self.fd, 16)  # swallow the sequence
-            return ""
+            c = os.read(self.fd, 1)
+            if c not in (b"[", b"O"):
+                return "" if c else "esc"  # alt+key is ignored; EOF closes
+            seq = b""
+            while True:  # read up to the final byte, so nothing typed next is swallowed
+                c = os.read(self.fd, 1)
+                seq += c
+                if not c or 0x40 <= c[0] <= 0x7E:
+                    break
+            return {b"A": "up", b"B": "down"}.get(seq[-1:], "")
         if b in (b"\x7f", b"\x08"):
             return "backspace"
         if b in (b"\r", b"\n"):
@@ -414,16 +422,16 @@ class UI:
                 mark = C_ACC + "▸" + C_RESET if i == sel else " "
                 cur = C_DIM + " (current)" + C_RESET if focused else ""
                 body.append(" %s %s%s%s %s%s" % (mark, C_KEY, k, C_RESET, text, cur))
-            self.frame(crumbs, body, "key or j/k + enter  esc cancel")
+            self.frame(crumbs, body, "key or ↑↓/j/k + enter  esc cancel")
             k = self.t.read_key()
             if k == "esc":
                 return None
             if k == "\r":
                 return items[sel][0]
-            if k in ("j", "ctrl+n"):
+            if k in ("j", "down", "ctrl+n"):
                 sel = (sel + 1) % len(items)
                 continue
-            if k in ("k", "ctrl+p"):
+            if k in ("k", "up", "ctrl+p"):
                 sel = (sel - 1) % len(items)
                 continue
             if k and k in keys[: len(items)] and k not in ("j", "k"):
