@@ -1,0 +1,7 @@
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/pradyb/herdr-which-key/discussions/categories/q-a
+    about: Ask how to set up the plugin or build a key tree in keys.toml.
+  - name: Ideas and feedback
+    url: https://github.com/pradyb/herdr-which-key/discussions/categories/ideas
+    about: Float an idea before opening a feature request.
