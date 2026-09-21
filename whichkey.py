@@ -153,6 +153,48 @@ def build_tree(cfg):
     return root
 
 
+PLUGINS_KEY = "P"
+RETRY = 'for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do "$@" >/dev/null 2>&1 && exit 0; sleep 0.2; done'
+
+
+def pick_key(label, taken):
+    """First free key for a label: word initials first, then its letters, then any letter or digit."""
+    words = re.findall(r"[a-z0-9]+", label.lower())
+    for c in [w[0] for w in words] + list("".join(words)) + list("abcdefghijklmnopqrstuvwxyz0123456789"):
+        if c not in taken:
+            return c
+    return None
+
+
+def add_plugins(root, plugins, own_id):
+    """Add a `P` group: one sub-group per other installed plugin, one leaf per pane/action it declares.
+
+    An explicit `P` in keys.toml wins. Nothing is added when no other plugin has anything to show.
+    """
+    if PLUGINS_KEY in root.children:
+        return
+    group = Node("plugins")
+    for p in plugins:
+        pid = p.get("plugin_id")
+        if not pid or pid == own_id or not p.get("enabled", True):
+            continue
+        items = [(x.get("title") or x["id"], ["plugin", "pane", "open", "--plugin", pid, "--entrypoint", x["id"]]) for x in p.get("panes", [])]
+        items += [(x.get("title") or x["id"], ["plugin", "action", "invoke", x["id"], "--plugin", pid]) for x in p.get("actions", [])]
+        sub = Node(p.get("name") or pid)
+        for label, argv in items:
+            k = pick_key(label, sub.children)
+            if k is None:  # ponytail: 36 keys per plugin; extra items are dropped
+                break
+            leaf = Node(label)
+            leaf.entry = {"run": shlex.join(argv), "defer": True}
+            sub.children[k] = leaf
+        gk = pick_key(sub.name, group.children)
+        if sub.children and gk:
+            group.children[gk] = sub
+    if group.children:
+        root.children[PLUGINS_KEY] = group
+
+
 # ----------------------------------------------------------------- context
 
 
@@ -463,6 +505,11 @@ def run_entry(ui, entry, crumbs, ctx):
             return None, ""
         values["input"] = text
 
+    if entry.get("defer"):
+        # herdr refuses a second popup while this one is open, so launch once we have exited
+        argv = [HERDR] + build_argv(entry["run"], values)
+        subprocess.Popen(["sh", "-c", RETRY, "sh"] + argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        return True, ""
     if entry.get("shell"):
         env = dict(os.environ)
         for k, v in values.items():
@@ -497,6 +544,11 @@ def main():
         with Term() as t:
             UI(t, "which-key").message([], C_ERR + "config error in %s: %s" % (path, e) + C_RESET)
         return 1
+    try:
+        plugins = _find_list(herdr_json(["plugin", "list", "--json"]), "plugins") or []
+        add_plugins(root, plugins, os.environ.get("HERDR_PLUGIN_ID", "pradyb.which-key"))
+    except Exception:  # noqa: BLE001  (older herdr without --json: no plugins group)
+        pass
     ctx = load_context()
 
     with Term() as t:

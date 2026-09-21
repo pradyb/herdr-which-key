@@ -60,6 +60,49 @@ def test_lone_escape_is_esc():
     assert _keys(b"\x1b", 1) == ["esc"]
 
 
+PLUGINS = [  # shape of `herdr plugin list --json` on herdr 0.9.1
+    {"plugin_id": "pradyb.which-key", "name": "Which Key", "enabled": True,
+     "actions": [{"id": "open", "title": "Open which-key menu"}], "panes": [{"id": "menu", "title": "Which Key"}]},
+    {"plugin_id": "thewtex.mem-cpu-load", "name": "Mem CPU Load", "enabled": True,
+     "actions": [{"id": "show-status", "title": "Show system status"}, {"id": "write-config", "title": "Write a default config.toml"}],
+     "panes": [{"id": "status", "title": "System status"}]},
+    {"plugin_id": "off.plugin", "name": "Off", "enabled": False, "actions": [{"id": "x", "title": "X"}], "panes": []},
+]
+
+
+def _tree_with_plugins(plugins, cfg=None):
+    root = wk.build_tree(cfg or {"key": []})
+    wk.add_plugins(root, plugins, "pradyb.which-key")
+    return root
+
+
+def test_plugins_group_lists_other_plugins_panes_and_actions():
+    root = _tree_with_plugins(PLUGINS)
+    group = root.children["P"]
+    assert [n.name for n in group.children.values()] == ["Mem CPU Load"]  # not ourselves, not the disabled one
+    sub = next(iter(group.children.values()))
+    cmds = {leaf.name: wk.build_argv(leaf.entry["run"], CTX) for leaf in sub.children.values()}
+    assert cmds["System status"] == ["plugin", "pane", "open", "--plugin", "thewtex.mem-cpu-load", "--entrypoint", "status"]
+    assert cmds["Show system status"] == ["plugin", "action", "invoke", "show-status", "--plugin", "thewtex.mem-cpu-load"]
+    assert len(sub.children) == 3 and all(leaf.entry["defer"] for leaf in sub.children.values())
+
+
+def test_plugin_keys_are_unique_even_when_titles_collide():
+    labels = ["System status", "Show system status", "Save settings", "Sync"]
+    taken = {}
+    for label in labels:
+        k = wk.pick_key(label, taken)
+        assert k and k not in taken
+        taken[k] = label
+    assert len(taken) == len(labels)
+
+
+def test_explicit_P_in_keys_toml_wins_and_no_plugins_adds_nothing():
+    mine = {"key": [{"seq": "P", "desc": "mine", "run": "server reload-config"}]}
+    assert _tree_with_plugins(PLUGINS, mine).children["P"].entry["run"] == "server reload-config"
+    assert "P" not in _tree_with_plugins(PLUGINS[:1]).children
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

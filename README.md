@@ -88,9 +88,25 @@ herdr plugin link "$PWD/herdr-which-key"
 | `p` H J K L | swap pane |
 | `p R` h j k l | resize, stays open so you can tap repeatedly |
 | `g n` | new git worktree (asks for a branch) |
+| `P` | your other installed plugins (see below) |
 
 In the popup: `esc` closes it, `backspace` goes up a level, and pickers
-accept `1-9 a-z` or `j/k` + `enter`.
+accept `1-9 a-z` or `j/k` / the arrow keys + `enter`.
+
+### Your other plugins
+
+Press `P` to see every other plugin you have installed. Each one is a group, and
+inside it are the panes and actions it provides. For example, with
+[mem-cpu-load](https://github.com/thewtex/herdr-mem-cpu-load) installed,
+`P` `m` `s` opens its system status pane.
+
+The list is read from `herdr plugin list --json` each time the menu opens, so new
+plugins show up without any setup. Keys are picked from the first free letter of
+each name. Each item is opened after the menu closes, because herdr won't open
+a popup while another is open.
+
+To use `P` for something else, define it in your `keys.toml` and the automatic
+group steps aside.
 
 ## Customise
 
