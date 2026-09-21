@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+- **Installed plugins appear in the menu**: press `P` to see every other plugin's panes and actions, discovered from `herdr plugin list --json` when the menu opens. Items are launched after the menu closes, since herdr refuses to open a popup while another popup is open. An explicit `P` in `keys.toml` takes precedence
+
 ## [0.1.1]
 
 ### Fixed

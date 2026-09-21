@@ -15,6 +15,9 @@
 #   pick    choose from "workspace", "tab" or "agent" first; id is {pick}
 #   stay    true = keep the menu open after running (hydra style, e.g. resize)
 #
+# Other installed plugins appear automatically under P. To use P yourself, define
+# a [[key]] with seq = "P" here and the automatic group is skipped.
+#
 # Placeholders: {pane} {tab} {workspace} {cwd} {workspace_label} {tab_label}
 #               {input} {pick}
 

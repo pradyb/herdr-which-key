@@ -1,6 +1,6 @@
 id = "pradyb.which-key"
 name = "Which Key"
-version = "0.1.1"
+version = "0.2.0"
 min_herdr_version = "0.7.4"
 description = "Neovim-style which-key popup: press a leader, see the next keys, run herdr actions"
 platforms = ["linux", "macos"]
