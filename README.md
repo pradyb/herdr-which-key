@@ -16,6 +16,23 @@ groups until you hit an action.
  esc close  ⌫ back
 ```
 
+## How is this different?
+
+A few herdr plugins show your keybindings. This one works like Neovim's
+which-key: you **type through a tree of keys you design**, rather than
+reading or searching a list of bindings you already have.
+
+| | [herdr-hintr](https://github.com/wraithyy/herdr-hintr) | [herdr-keymap](https://github.com/The-Dave-Stack/herdr-keymap) | **herdr-which-key** |
+|---|---|---|---|
+| What it shows | cheatsheet of the bindings in your config | palette of all bindings by category | a key tree you define in `keys.toml` |
+| Nested groups (`p` → `R` → `h`) | no | categories | yes, any depth |
+| Pickers, text prompts, repeat mode | no | no | yes |
+| Runs actions that have no binding of their own | no | no | yes, any herdr CLI or shell command |
+| Needs | zsh | see its README | python3 |
+
+They don't conflict, so you can install them side by side. For example, keep
+a cheatsheet on one key and which-key on `prefix+space`.
+
 ## Requirements
 
 - herdr 0.7.4 or newer (the version that added popups)
