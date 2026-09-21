@@ -1,0 +1,22 @@
+id = "pradyb.which-key"
+name = "Which Key"
+version = "0.1.0"
+min_herdr_version = "0.7.4"
+description = "Neovim-style which-key popup: press a leader, see the next keys, run herdr actions"
+platforms = ["linux", "macos"]
+
+# Bound to a key in config.toml. Opens the popup and hands it the
+# workspace / tab / pane that was focused when the leader was pressed.
+[[actions]]
+id = "open"
+title = "Open which-key menu"
+contexts = ["global"]
+command = ["sh", "launch.sh"]
+
+[[panes]]
+id = "menu"
+title = "Which Key"
+placement = "popup"
+width = "70%"
+height = 16
+command = ["python3", "whichkey.py"]
