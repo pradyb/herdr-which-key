@@ -1,4 +1,4 @@
-# Normalize line endings: force LF so launch.sh (run by sh) never gets CRLF
+# Normalize line endings: force LF so shell scripts never gets CRLF
 # when checked out on Windows, and diffs stay clean across platforms.
 
 * text=auto eol=lf
