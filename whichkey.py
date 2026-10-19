@@ -342,6 +342,10 @@ class Term:
             # raw + VT: no line editing/echo/Ctrl-C handling, arrows arrive as escape sequences; output takes VT colours
             self._mode(self.hin, (self.old[0] & ~0x7) | 0x200)
             self._mode(self.hout, self.old[1] | 0x5)
+            # the console decodes bytes with its legacy code page (cp437/850), which turns UTF-8 box drawing into mojibake
+            self.cp = (self.k32.GetConsoleCP(), self.k32.GetConsoleOutputCP())
+            self.k32.SetConsoleCP(65001)
+            self.k32.SetConsoleOutputCP(65001)
         else:
             tty.setraw(self.fd)
         self.write(ESC + "[?25l")  # hide cursor
@@ -352,6 +356,8 @@ class Term:
         if os.name == "nt":
             self._mode(self.hin, self.old[0])
             self._mode(self.hout, self.old[1])
+            self.k32.SetConsoleCP(self.cp[0])
+            self.k32.SetConsoleOutputCP(self.cp[1])
         else:
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old)
 
