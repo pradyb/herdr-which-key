@@ -559,7 +559,7 @@ def run_entry(ui, entry, crumbs, ctx):
         argv = [HERDR] + build_argv(entry["run"], values)
         # ponytail: sh on POSIX; Windows retries via python (no sh needed), same 15 x 0.2s
         launcher = [sys.executable, "-c", RETRY_PY, *argv] if os.name == "nt" else ["sh", "-c", RETRY, "sh", *argv]
-        detach = {"creationflags": 0x208} if os.name == "nt" else {"start_new_session": True}
+        detach = {"creationflags": 0x08000200} if os.name == "nt" else {"start_new_session": True}
         subprocess.Popen(launcher, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **detach)
         return True, ""
     if entry.get("shell"):
