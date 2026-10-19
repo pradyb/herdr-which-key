@@ -265,7 +265,7 @@ def build_argv(template, values):
 
 
 def herdr_json(args):
-    p = subprocess.run([HERDR] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    p = subprocess.run([HERDR] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
     if p.returncode != 0:
         raise RuntimeError((p.stderr or p.stdout).strip() or "herdr %s failed" % " ".join(args))
     return json.loads(p.stdout)
@@ -569,10 +569,10 @@ def run_entry(ui, entry, crumbs, ctx):
         cmd = fill(entry["shell"], {k: shlex.quote(str(v)) for k, v in values.items()})
         if os.name == "nt" and not shutil.which("sh"):
             return False, "shell entries need sh on PATH (e.g. Git for Windows)"
-        p = subprocess.run(["sh", "-c", cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        p = subprocess.run(["sh", "-c", cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
     elif entry.get("run"):
         argv = [HERDR] + build_argv(entry["run"], values)
-        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
     else:
         return False, "entry has no run/shell command"
     if p.returncode != 0:
