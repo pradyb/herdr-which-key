@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+- **Windows support**: the popup puts the Windows console in raw/VT mode with UTF-8, and key reads use `msvcrt`
+
+### Changed
+- The launcher is now `launch.py` (was `launch.sh`), so it runs on Windows too
+- herdr output is decoded as UTF-8 on every platform
+
 ## [0.2.0]
 
 ### Added
