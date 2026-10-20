@@ -16,7 +16,7 @@ Bind the plugin's `open` action to a key as described in the README, then edit
 ```sh
 python3 test_whichkey.py
 python3 -m py_compile whichkey.py
-shellcheck launch.sh
+python -m py_compile launch.py
 ```
 
 CI runs the same checks on Python 3.8 and the latest 3.x for every push and PR.

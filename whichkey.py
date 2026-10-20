@@ -9,13 +9,19 @@ Standard library only (Python 3.8+).
 import json
 import os
 import re
-import select
 import shlex
 import shutil
 import subprocess
 import sys
-import termios
-import tty
+
+if os.name == "nt":
+    import ctypes
+    import msvcrt
+    import time
+else:
+    import select
+    import termios
+    import tty
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HERDR = os.environ.get("HERDR_BIN_PATH") or "herdr"
@@ -154,6 +160,13 @@ def build_tree(cfg):
 
 
 PLUGINS_KEY = "P"
+RETRY_PY = (
+    "import subprocess,sys,time\n"
+    "for _ in range(15):\n"
+    "    if subprocess.run(sys.argv[1:], capture_output=True).returncode == 0:\n"
+    "        break\n"
+    "    time.sleep(0.2)"
+)
 RETRY = 'for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do "$@" >/dev/null 2>&1 && exit 0; sleep 0.2; done'
 
 
@@ -252,7 +265,7 @@ def build_argv(template, values):
 
 
 def herdr_json(args):
-    p = subprocess.run([HERDR] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    p = subprocess.run([HERDR] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
     if p.returncode != 0:
         raise RuntimeError((p.stderr or p.stdout).strip() or "herdr %s failed" % " ".join(args))
     return json.loads(p.stdout)
@@ -307,16 +320,59 @@ C_ERR = ESC + "[1;31m"
 class Term:
     def __init__(self):
         self.fd = sys.stdin.fileno()
-        self.old = termios.tcgetattr(self.fd)
+        if os.name == "nt":
+            self.k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            self.k32.GetStdHandle.restype = ctypes.c_void_p
+            self.k32.GetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+            self.k32.SetConsoleMode.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+            self.hin, self.hout = (self.k32.GetStdHandle(n) for n in (-10, -11))
+            self.old = [self._mode(h) for h in (self.hin, self.hout)]
+        else:
+            self.old = termios.tcgetattr(self.fd)
+
+    def _mode(self, h, new=None):
+        m = ctypes.c_uint32()
+        self.k32.GetConsoleMode(h, ctypes.byref(m))
+        if new is not None:
+            self.k32.SetConsoleMode(h, new)
+        return m.value
 
     def __enter__(self):
-        tty.setraw(self.fd)
+        if os.name == "nt":
+            # raw + VT: no line editing/echo/Ctrl-C handling, arrows arrive as escape sequences; output takes VT colours
+            self._mode(self.hin, (self.old[0] & ~0x7) | 0x200)
+            self._mode(self.hout, self.old[1] | 0x5)
+            # the console decodes bytes with its legacy code page (cp437/850), which turns UTF-8 box drawing into mojibake
+            self.cp = (self.k32.GetConsoleCP(), self.k32.GetConsoleOutputCP())
+            self.k32.SetConsoleCP(65001)
+            self.k32.SetConsoleOutputCP(65001)
+        else:
+            tty.setraw(self.fd)
         self.write(ESC + "[?25l")  # hide cursor
         return self
 
     def __exit__(self, *exc):
         self.write(ESC + "[?25h" + C_RESET)
-        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old)
+        if os.name == "nt":
+            self._mode(self.hin, self.old[0])
+            self._mode(self.hout, self.old[1])
+            self.k32.SetConsoleCP(self.cp[0])
+            self.k32.SetConsoleOutputCP(self.cp[1])
+        else:
+            termios.tcsetattr(self.fd, termios.TCSADRAIN, self.old)
+
+    def ready(self, timeout):
+        """True if a byte can be read within timeout seconds."""
+        if os.name != "nt":
+            return bool(select.select([self.fd], [], [], timeout)[0])
+        if not os.isatty(self.fd):
+            return True  # ponytail: only tests feed a pipe here (writer already closed, so read never blocks)
+        end = time.monotonic() + timeout
+        while not msvcrt.kbhit():  # select() does not work on console handles
+            if time.monotonic() >= end:
+                return False
+            time.sleep(0.005)
+        return True
 
     def write(self, s):
         os.write(sys.stdout.fileno(), s.encode("utf-8"))
@@ -332,8 +388,7 @@ class Term:
             return "esc"
         if b == b"\x1b":
             # lone ESC vs. an escape sequence (arrows etc.)
-            r, _, _ = select.select([self.fd], [], [], 0.03)
-            if not r:
+            if not self.ready(0.03):
                 return "esc"
             c = os.read(self.fd, 1)
             if c not in (b"[", b"O"):
@@ -508,17 +563,22 @@ def run_entry(ui, entry, crumbs, ctx):
     if entry.get("defer"):
         # herdr refuses a second popup while this one is open, so launch once we have exited
         argv = [HERDR] + build_argv(entry["run"], values)
-        subprocess.Popen(["sh", "-c", RETRY, "sh"] + argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        # ponytail: sh on POSIX; Windows retries via python (no sh needed), same 15 x 0.2s
+        launcher = [sys.executable, "-c", RETRY_PY, *argv] if os.name == "nt" else ["sh", "-c", RETRY, "sh", *argv]
+        detach = {"creationflags": 0x08000200} if os.name == "nt" else {"start_new_session": True}
+        subprocess.Popen(launcher, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **detach)
         return True, ""
     if entry.get("shell"):
         env = dict(os.environ)
         for k, v in values.items():
             env["WK_" + k.upper()] = str(v)
         cmd = fill(entry["shell"], {k: shlex.quote(str(v)) for k, v in values.items()})
-        p = subprocess.run(["sh", "-c", cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        if os.name == "nt" and not shutil.which("sh"):
+            return False, "shell entries need sh on PATH (e.g. Git for Windows)"
+        p = subprocess.run(["sh", "-c", cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
     elif entry.get("run"):
         argv = [HERDR] + build_argv(entry["run"], values)
-        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
     else:
         return False, "entry has no run/shell command"
     if p.returncode != 0:

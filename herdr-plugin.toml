@@ -3,7 +3,7 @@ name = "Which Key"
 version = "0.2.0"
 min_herdr_version = "0.7.4"
 description = "Neovim-style which-key popup: press a leader, see the next keys, run herdr actions"
-platforms = ["linux", "macos"]
+platforms = ["linux", "macos", "windows"]
 
 # Bound to a key in config.toml. Opens the popup and hands it the
 # workspace / tab / pane that was focused when the leader was pressed.
@@ -11,7 +11,7 @@ platforms = ["linux", "macos"]
 id = "open"
 title = "Open which-key menu"
 contexts = ["global"]
-command = ["sh", "launch.sh"]
+command = ["python3", "launch.py"]
 
 [[panes]]
 id = "menu"
